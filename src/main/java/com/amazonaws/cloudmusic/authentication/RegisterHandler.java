@@ -1,7 +1,5 @@
 package com.amazonaws.cloudmusic.authentication;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -10,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
@@ -31,7 +29,8 @@ public class RegisterHandler {
                 properties.load(input);
                 String accessKey = properties.getProperty("aws_access_key_id");
                 String secretKey = properties.getProperty("aws_secret_access_key");
-                BasicAWSCredentials awsCreds = new BasicAWSCredentials(accessKey, secretKey);
+                String sessionToken = properties.getProperty("aws_session_token");
+                BasicSessionCredentials awsCreds = new BasicSessionCredentials(accessKey, secretKey,sessionToken);
                 client = AmazonDynamoDBClientBuilder.standard()
                         .withCredentials(new AWSStaticCredentialsProvider(awsCreds))
                         .withRegion(Regions.US_EAST_1)
@@ -74,5 +73,9 @@ public class RegisterHandler {
             message = "Register error: " + e.getMessage();
         }
         return message;
+    }
+    public static void main(String[] args){
+        RegisterHandler RH = new RegisterHandler();
+        System.out.println(RH.registerUser("test", "test","test"));
     }
 }

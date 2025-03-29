@@ -33,11 +33,11 @@ sudo apt install maven
 
 ### Step 1: Aws Credentials
 <div style="margin-left: 20px;">
-In order to run this locally you will need to provide the **Access Key** and the **Secret Access Key**.
+In order to run this locally you will need to provide the <b>Access Key</b>, <b>Secret Access Key</b> and the <b>Session Token</b>.
 
-> **NOTE:** You do not have to do this step if you have used aws configure or manually placed your **Access Key** and **Secret Access Key** within the `.aws/credentials` file (usually located in the home directory).
+> **NOTE:** You do not have to do this step if you have used aws configure or manually placed your **Access Key**, **Secret Access Key** and **Session Token** within the `.aws/credentials` file (usually located in the home directory).
 
-Once you have obtained your **Access Key** and the **Secret Access Key**, place it within the [aws-credentials.properties](src/main/resources/aws-credentials.properties) file.
+Once you have obtained your **Access Key**, **Secret Access Key** and **Session Token**, place it within the [aws-credentials.properties](src/main/resources/aws-credentials.properties) file.
 </div>
 
 ### Step 2-1: Running Website (Locally)
