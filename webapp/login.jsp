@@ -1,3 +1,4 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -67,7 +68,7 @@
 <body>
 <div class="container">
     <h1>Login</h1>
-    <form action="/login" method="post">
+    <form action="login" method="post">
         <label for="email">Email:</label>
         <input type="text" id="email" name="email" required>
 
@@ -80,9 +81,11 @@
             Don’t have an account? <a href="register.html">Register</a>
         </div>
 
-        <div class="error" id="errorMsg">
-            ${errorMessage}
+        <% if (request.getAttribute("errorMessage") != null) { %>
+        <div class="error">
+            <%= request.getAttribute("errorMessage") %>
         </div>
+        <% } %>
 
         <script>
             const errorDiv = document.getElementById("errorMsg");
