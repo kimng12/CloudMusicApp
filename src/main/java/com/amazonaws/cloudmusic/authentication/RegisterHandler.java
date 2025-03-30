@@ -2,7 +2,10 @@ package com.amazonaws.cloudmusic.authentication;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Properties;
+import java.util.List;
+import java.util.Map;
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicSessionCredentials;
@@ -14,11 +17,11 @@ import com.amazonaws.services.dynamodbv2.document.Item;
 import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.dynamodbv2.document.spec.GetItemSpec;
 
-public class LoginHandler {
+public class RegisterHandler {
     private final DynamoDB dynamoDB;
     private final Table loginTable;
 
-    public LoginHandler() {
+    public RegisterHandler() {
         AmazonDynamoDB client = null;
         try (InputStream input =  getClass().getClassLoader().getResourceAsStream("aws-credentials.properties")) {
             if (input != null) {
@@ -47,43 +50,32 @@ public class LoginHandler {
         this.loginTable = dynamoDB.getTable("login");
     }
 
-    public boolean authenticate(String email, String password) {
+    // Creates user with given email, password, username and subscription status
+    public String registerUser(String email, String password,String user_name) {
+        String message = "";
         try {
+            
             GetItemSpec spec = new GetItemSpec().withPrimaryKey("email", email);
-            Item item = loginTable.getItem(spec);
-            if (item != null && item.getString("password").equals(password)) {
-                return true;
+            Item user = loginTable.getItem(spec);
+            if (user==null){
+                List<Map<String,String>> subscriptions = new ArrayList<>();
+
+                Item item = new Item().withPrimaryKey("email", email)
+                            .withString("password",password)
+                            .withString("user_name",user_name)
+                            .withList("subscriptions",subscriptions);
+                this.loginTable.putItem(item);
+                message = String.format("Succesfully added user %s",email);
+            }else{
+                message = "The email already exists";
             }
         } catch (Exception e) {
-            System.err.println("Login error: " + e.getMessage());
+            message = "Register error: " + e.getMessage();
         }
-        return false;
-
-        // TEST CODE: Use when not connected to dynamoDB and want to test locally
-//        if (email.equals("test@example.com") && password.equals("1234")) {
-//            return true;
-//        }
-//        return false;
+        return message;
     }
-
-    public String getUsername(String email) {
-        try {
-            GetItemSpec spec = new GetItemSpec().withPrimaryKey("email", email);
-            Item item = loginTable.getItem(spec);
-            if (item != null) {
-                return item.getString("user_name");
-            }
-        } catch (Exception e) {
-            System.err.println("Error getting username: " + e.getMessage());
-        }
-        return "";
-
-        // TEST CODE: Use when not connected to dynamoDB and want to test locally
-//        if (email.equals("test@example.com")) {
-//            return "Test User";
-//        }
-//        return "";
+    public static void main(String[] args){
+        RegisterHandler RH = new RegisterHandler();
+        System.out.println(RH.registerUser("test", "test","test"));
     }
-
-
 }

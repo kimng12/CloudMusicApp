@@ -49,6 +49,13 @@
                     </webApp>
                 </configuration>
             </plugin>
+
+            <!-- Added newer version of the war plugin because i was getting an incompatibility error when i run mvn package clean -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+            <version>3.3.1</version> 
+        </plugin>
         </plugins>
     </build>
 
