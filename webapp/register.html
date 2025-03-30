@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Cloud Music - Register</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -32,12 +33,14 @@
             font-weight: bold;
         }
         input[type="text"],
-        input[type="password"] {
+        input[type="password"],
+        input[type="email"] {
             width: 100%;
             padding: 0.6em;
             margin-top: 0.3em;
             border: 1px solid #ccc;
             border-radius: 4px;
+            box-sizing: border-box;
         }
         .btn {
             margin-top: 1.5em;
@@ -49,9 +52,14 @@
             border-radius: 4px;
             font-weight: bold;
             cursor: pointer;
+            transition: background 0.3s;
         }
         .btn:hover {
             background: #1e7e34;
+        }
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
         }
         .bottom-text {
             text-align: center;
@@ -63,36 +71,157 @@
             text-align: center;
             display: none;
         }
+        .spinner-border {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            vertical-align: middle;
+            border: 0.2em solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spinner-border 0.75s linear infinite;
+            margin-right: 0.5rem;
+        }
+        @keyframes spinner-border {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
 <div class="container">
     <h1>Register</h1>
-    <form action="/register" method="post">
+    <form id="registerForm">
         <label for="email">Email:</label>
-        <input type="text" id="email" name="email" required>
+        <input type="email" id="email" name="email" required>
 
         <label for="user_name">Username:</label>
         <input type="text" id="user_name" name="user_name" required>
 
         <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required>
+        <input type="password" id="password" name="password" required minlength="4">
 
-        <button class="btn" type="submit">Register</button>
+        <button class="btn" type="submit" id="submitBtn">Register</button>
 
         <div class="bottom-text">
             Already have an account? <a href="login.html">Login</a>
         </div>
 
-        <div class="error" id="errorMsg">${errorMessage}</div>
+        <div class="error" id="errorMsg"></div>
     </form>
 </div>
 
 <script>
-    const errorDiv = document.getElementById("errorMsg");
-    if (errorDiv.textContent.trim() !== "" && errorDiv.textContent.trim() !== "${errorMessage}") {
-        errorDiv.style.display = "block";
-    }
+    // API endpoint - replace with your endpoint
+    const API_ENDPOINT = "https://m7cwxf9sb1.execute-api.us-east-1.amazonaws.com/default/RegisterFunction";
+
+    $(document).ready(function() {
+        $('#registerForm').on('submit', function(e) {
+            e.preventDefault();
+
+            // Reset error message
+            $('#errorMsg').hide().text('');
+
+            // Get form values
+            const email = $('#email').val().trim();
+            const username = $('#user_name').val().trim();
+            const password = $('#password').val().trim();
+
+            // Client-side validation
+            if (!email || !username || !password) {
+                showError('All fields are required');
+                return;
+            }
+
+            if (!email.includes('@') || !email.includes('.')) {
+                showError('Please enter a valid email');
+                return;
+            }
+
+            if (password.length < 4) {
+                showError('Password must be at least 4 characters');
+                return;
+            }
+
+            if (username.length < 3) {
+                showError('Username must be at least 3 characters');
+                return;
+            }
+
+            // Show loading state
+            const submitBtn = $('#submitBtn');
+            submitBtn.prop('disabled', true)
+                .html('<span class="spinner-border"></span> Registering');
+
+            // Prepare request data
+            const requestData = {
+                email: email,
+                user_name: username,
+                password: password
+            };
+
+            // Send AJAX request
+            $.ajax({
+                url: API_ENDPOINT,
+                type: 'POST',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify(requestData),
+                success: function(responseData) {
+                    try {
+                        // Handle Lambda proxy response format
+                        let response;
+                        if (typeof responseData === 'string') {
+                            response = JSON.parse(responseData);
+                        } else {
+                            response = responseData;
+                        }
+
+                        // Some Lambda configurations nest the response in 'body'
+                        if (response.body) {
+                            try {
+                                response = JSON.parse(response.body);
+                            } catch (e) {
+                                console.error("Error parsing response body:", e);
+                            }
+                        }
+
+                        if (response && response.success) {
+                            // Registration successful
+                            window.location.href = 'login.html?registered=true&email=' +
+                                encodeURIComponent(response.user.email);
+                        } else {
+                            // Registration failed
+                            const errorMsg = response.message || 'Registration failed';
+                            showError(errorMsg);
+                        }
+                    } catch (e) {
+                        console.error("Error processing response:", e);
+                        showError('Failed to process server response');
+                    }
+                },
+                error: function(jqXHR) {
+                    let errorMsg = 'Registration failed. Please try again.';
+                    try {
+                        const errorResponse = JSON.parse(jqXHR.responseText);
+                        if (errorResponse.message) {
+                            errorMsg = errorResponse.message;
+                        }
+                    } catch (e) {
+                        console.error("Error parsing error response:", e);
+                    }
+                    showError(errorMsg);
+                },
+                complete: function() {
+                    // Reset button state
+                    submitBtn.prop('disabled', false).text('Register');
+                }
+            });
+        });
+
+        function showError(message) {
+            $('#errorMsg').text(message).show();
+        }
+    });
 </script>
 </body>
 </html>
