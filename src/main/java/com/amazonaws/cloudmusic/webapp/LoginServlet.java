@@ -16,6 +16,12 @@ public class LoginServlet extends HttpServlet {
     }
 
     @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        request.getRequestDispatcher("login.jsp").forward(request, response);
+    }
+
+    @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
@@ -34,7 +40,7 @@ public class LoginServlet extends HttpServlet {
         } else {
             // invalid login, show error
             request.setAttribute("errorMessage", "Email or password is invalid");
-            request.getRequestDispatcher("login.html").forward(request, response);
+            request.getRequestDispatcher("login.jsp").forward(request, response);
         }
     }
 }
