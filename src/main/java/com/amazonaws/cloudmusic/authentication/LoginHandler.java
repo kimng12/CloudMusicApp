@@ -58,6 +58,12 @@ public class LoginHandler {
             System.err.println("Login error: " + e.getMessage());
         }
         return false;
+
+        // TEST CODE: Use when not connected to dynamoDB and want to test locally
+//        if (email.equals("test@example.com") && password.equals("1234")) {
+//            return true;
+//        }
+//        return false;
     }
 
     public String getUsername(String email) {
@@ -71,5 +77,13 @@ public class LoginHandler {
             System.err.println("Error getting username: " + e.getMessage());
         }
         return "";
+
+        // TEST CODE: Use when not connected to dynamoDB and want to test locally
+//        if (email.equals("test@example.com")) {
+//            return "Test User";
+//        }
+//        return "";
     }
+
+
 }
