@@ -23,7 +23,7 @@ public class RegisterServlet extends HttpServlet{
             String user_name = request.getParameter("user_name");
             String message = registerHandler.registerUser(email, password,user_name);
             if (message.contains("Succesfully added user")){
-                response.sendRedirect("login.html"); 
+                response.sendRedirect("login.jsp"); 
             }else{
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);  // 400 Bad Request
                 response.setContentType("text/html");
