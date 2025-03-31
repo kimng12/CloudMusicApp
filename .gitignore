@@ -12,6 +12,9 @@ target/
 *.iml
 *.ipr
 
+src/main/resources/aws-credentials.properties
+
+
 ### Eclipse ###
 .apt_generated
 .classpath
