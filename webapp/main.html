@@ -2,9 +2,197 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Cloud Music - Main</title>
+    <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+          background: #f4f4f4;
+        }
+        .top-bar {
+          background-color: #e60028;
+          color: white;
+          padding: 1em 2em;
+          font-size: 24px;
+          font-weight: bold;
+          text-align: center;
+          position: relative
+        }
+        .top-bar-inner {
+          max-width: 1000px;
+          margin: 0 auto;
+        }
+        header {
+          background: #070758;
+          color: white;
+          padding: 1em 2em;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .container {
+          padding: 2em;
+          max-width: 1000px;
+          margin: auto;
+        }
+        .section {
+          background: white;
+          padding: 1.5em;
+          margin-top: 2em;
+          border-radius: 8px;
+          box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+        h2 {
+          margin-top: 0;
+        }
+        .song {
+          border-bottom: 1px solid #ddd;
+          padding: 1em 0;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .song-info {
+          flex-grow: 1;
+        }
+        .song img {
+          width: 80px;
+          height: 80px;
+          object-fit: cover;
+          border-radius: 8px;
+          margin-left: 1em;
+        }
+        button {
+          padding: 0.5em 1em;
+          background: #007BFF;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        button:hover {
+          background: #0056b3;
+        }
+        input[type="text"] {
+          padding: 0.5em;
+          margin: 0.3em 1em 0.3em 0;
+          width: 200px;
+        }
+    </style>
 </head>
 <body>
+
+<div class="top-bar">
+    <div class="top-bar-inner">
+        Cloud Music App
+    </div>
+</div>
+<header>
+    <div></div> <!-- spacer -->
+    <div>
+        Welcome, <span id="username">[username]</span> |
+        <a href="login.jsp" style="color: white; text-decoration: underline;">Logout</a>
+    </div>
+</header>
+
+<div class="container">
+    <!-- Subscriptions -->
+    <div class="section" id="subscription-area">
+        <h2>Your Subscriptions</h2>
+        <div id="subscriptions"></div>
+    </div>
+
+    <!-- Search -->
+    <div class="section">
+        <h2>Search Music</h2>
+        <div>
+            <input type="text" id="query-title" placeholder="Title">
+            <input type="text" id="query-artist" placeholder="Artist">
+            <input type="text" id="query-album" placeholder="Album">
+            <input type="text" id="query-year" placeholder="Year">
+            <button onclick="queryMusic()">Query</button>
+        </div>
+        <div id="query-results"></div>
+    </div>
+</div>
+
+<script>
+    window.onload = function () {
+      fetch('/getUserInfo')
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById('username').innerText = data.username;
+          loadSubscriptions(data.subscriptions || []);
+        });
+    };
+
+    function loadSubscriptions(subs) {
+      const container = document.getElementById('subscriptions');
+      container.innerHTML = subs.length ? '' : '<p>You have no subscriptions yet.</p>';
+      subs.forEach(song => {
+        const div = document.createElement('div');
+        div.className = 'song';
+        div.innerHTML = `
+          <div class="song-info">
+            <strong>${song.title}</strong><br>
+            ${song.artist} - ${song.album} (${song.year})
+          </div>
+          <img src="${song.imageUrl}" alt="Artist">
+          <button onclick="removeSong('${song.title}')">Remove</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function removeSong(title) {
+      fetch('/removeSong?title=' + encodeURIComponent(title), { method: 'POST' })
+        .then(() => window.location.reload());
+    }
+
+    function queryMusic() {
+      const params = new URLSearchParams({
+        title: document.getElementById('query-title').value,
+        artist: document.getElementById('query-artist').value,
+        album: document.getElementById('query-album').value,
+        year: document.getElementById('query-year').value
+      });
+
+      if (![...params.values()].some(val => val)) {
+        alert("Please fill at least one query field.");
+        return;
+      }
+
+      fetch('/queryMusic?' + params)
+        .then(res => res.json())
+        .then(data => {
+          const container = document.getElementById('query-results');
+          container.innerHTML = '';
+          if (!data.length) {
+            container.innerHTML = '<p>No result is retrieved. Please query again.</p>';
+            return;
+          }
+          data.forEach(song => {
+            const div = document.createElement('div');
+            div.className = 'song';
+            div.innerHTML = `
+              <div class="song-info">
+                <strong>${song.title}</strong><br>
+                ${song.artist} - ${song.album} (${song.year})
+              </div>
+              <img src="${song.imageUrl}" alt="Artist">
+              <button onclick="subscribeSong('${song.title}')">Subscribe</button>
+            `;
+            container.appendChild(div);
+          });
+        });
+    }
+
+    function subscribeSong(title) {
+      fetch('/subscribeSong?title=' + encodeURIComponent(title), { method: 'POST' })
+        .then(() => window.location.reload());
+    }
+</script>
 
 </body>
 </html>
