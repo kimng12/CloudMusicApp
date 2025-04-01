@@ -48,41 +48,41 @@ public class LoginHandler {
     }
 
     public boolean authenticate(String email, String password) {
-        try {
-            GetItemSpec spec = new GetItemSpec().withPrimaryKey("email", email);
-            Item item = loginTable.getItem(spec);
-            if (item != null && item.getString("password").equals(password)) {
-                return true;
-            }
-        } catch (Exception e) {
-            System.err.println("Login error: " + e.getMessage());
-        }
-        return false;
-
-        // TEST CODE: Use when not connected to dynamoDB and want to test locally
-//        if (email.equals("test@example.com") && password.equals("1234")) {
-//            return true;
+//        try {
+//            GetItemSpec spec = new GetItemSpec().withPrimaryKey("email", email);
+//            Item item = loginTable.getItem(spec);
+//            if (item != null && item.getString("password").equals(password)) {
+//                return true;
+//            }
+//        } catch (Exception e) {
+//            System.err.println("Login error: " + e.getMessage());
 //        }
 //        return false;
+
+        // TEST CODE: Use when not connected to dynamoDB and want to test locally
+        if (email.equals("test@example.com") && password.equals("1234")) {
+            return true;
+        }
+        return false;
     }
 
     public String getUsername(String email) {
-        try {
-            GetItemSpec spec = new GetItemSpec().withPrimaryKey("email", email);
-            Item item = loginTable.getItem(spec);
-            if (item != null) {
-                return item.getString("user_name");
-            }
-        } catch (Exception e) {
-            System.err.println("Error getting username: " + e.getMessage());
-        }
-        return "";
-
-        // TEST CODE: Use when not connected to dynamoDB and want to test locally
-//        if (email.equals("test@example.com")) {
-//            return "Test User";
+//        try {
+//            GetItemSpec spec = new GetItemSpec().withPrimaryKey("email", email);
+//            Item item = loginTable.getItem(spec);
+//            if (item != null) {
+//                return item.getString("user_name");
+//            }
+//        } catch (Exception e) {
+//            System.err.println("Error getting username: " + e.getMessage());
 //        }
 //        return "";
+
+        // TEST CODE: Use when not connected to dynamoDB and want to test locally
+        if (email.equals("test@example.com")) {
+            return "Test User";
+        }
+        return "";
     }
 
 

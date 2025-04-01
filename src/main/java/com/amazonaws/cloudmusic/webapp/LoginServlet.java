@@ -18,7 +18,7 @@ public class LoginServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        request.getRequestDispatcher("login.jsp").forward(request, response);
+        request.getRequestDispatcher("login.html").forward(request, response);
     }
 
     @Override
@@ -38,9 +38,8 @@ public class LoginServlet extends HttpServlet {
             // redirect to main page
             response.sendRedirect("main.html");  // update to servlet route if needed
         } else {
-            // invalid login, show error
-            request.setAttribute("errorMessage", "Email or password is invalid");
-            request.getRequestDispatcher("login.jsp").forward(request, response);
+            String errorMsg = "Email or password is invalid";
+            response.sendRedirect("login.html?error=" + java.net.URLEncoder.encode(errorMsg, "UTF-8"));
         }
     }
 }
