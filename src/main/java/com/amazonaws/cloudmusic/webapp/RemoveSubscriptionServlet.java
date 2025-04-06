@@ -1,16 +1,14 @@
 package com.amazonaws.cloudmusic.webapp;
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.cloudmusic.util.AWSUtil;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.document.*;
 import com.amazonaws.services.dynamodbv2.document.spec.GetItemSpec;
 import com.amazonaws.services.dynamodbv2.document.spec.UpdateItemSpec;
-import com.amazonaws.services.dynamodbv2.model.ReturnValue;
-import com.amazonaws.cloudmusic.util.AWSUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.amazonaws.services.dynamodbv2.document.utils.ValueMap;
-
+import com.amazonaws.services.dynamodbv2.model.ReturnValue;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -18,8 +16,8 @@ import javax.servlet.http.*;
 import java.io.IOException;
 import java.util.*;
 
-@WebServlet("/subscribeSong")
-public class SubscribeServlet extends HttpServlet {
+@WebServlet("/removeSong")
+public class RemoveSubscriptionServlet extends HttpServlet {
     private Table loginTable;
 
     @Override
@@ -45,51 +43,45 @@ public class SubscribeServlet extends HttpServlet {
         }
 
         String email = (String) session.getAttribute("email");
+        String titleToRemove = request.getParameter("title");
 
-        Map<String, Object> songData = new ObjectMapper().readValue(request.getReader(), Map.class);
-
-        Map<String, Object> song = new HashMap<>();
-        song.put("title", songData.get("title"));
-        song.put("artist", songData.get("artist"));
-        song.put("album", songData.get("album"));
-        song.put("year", songData.get("year"));
-        song.put("image_url", songData.get("imageUrl")); // Use "image_url" for storage, matches DB convention
+        if (titleToRemove == null || titleToRemove.trim().isEmpty()) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            response.getWriter().write("{\"error\":\"Missing song title to remove.\"}");
+            return;
+        }
 
         try {
-            // Fetch existing subscriptions
             GetItemSpec spec = new GetItemSpec().withPrimaryKey("email", email);
             Item userItem = loginTable.getItem(spec);
             List<Map<String, Object>> subscriptions = userItem.getList("subscriptions");
 
-            if (subscriptions == null) {
-                subscriptions = new ArrayList<>();
+            if (subscriptions == null || subscriptions.isEmpty()) {
+                response.setStatus(HttpServletResponse.SC_OK);
+                response.getWriter().write("{\"status\":\"nothing to remove\"}");
+                return;
             }
 
-            // Check for duplicates (based on title + artist)
-            boolean alreadySubscribed = subscriptions.stream().anyMatch(s ->
-                    s.get("title").equals(song.get("title")) &&
-                            s.get("artist").equals(song.get("artist"))
+            // Remove song by matching the titles
+            subscriptions.removeIf(song ->
+                    titleToRemove.equals(song.get("title"))
             );
 
-            if (!alreadySubscribed) {
-                subscriptions.add(song);
+            UpdateItemSpec updateSpec = new UpdateItemSpec()
+                    .withPrimaryKey("email", email)
+                    .withUpdateExpression("set subscriptions = :s")
+                    .withValueMap(new ValueMap().withList(":s", subscriptions))
+                    .withReturnValues(ReturnValue.UPDATED_NEW);
 
-                UpdateItemSpec updateSpec = new UpdateItemSpec()
-                        .withPrimaryKey("email", email)
-                        .withUpdateExpression("set subscriptions = :s")
-                        .withValueMap(new ValueMap().withList(":s", subscriptions))
-                        .withReturnValues(ReturnValue.UPDATED_NEW);
-
-                loginTable.updateItem(updateSpec);
-            }
+            loginTable.updateItem(updateSpec);
 
             response.setStatus(HttpServletResponse.SC_OK);
-            response.getWriter().write("{\"status\":\"success\"}");
+            response.getWriter().write("{\"status\":\"removed\"}");
 
         } catch (Exception e) {
             e.printStackTrace();
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            response.getWriter().write("{\"error\":\"Failed to subscribe to song.\"}");
+            response.getWriter().write("{\"error\":\"Failed to remove subscription.\"}");
         }
     }
 }
