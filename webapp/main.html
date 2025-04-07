@@ -181,17 +181,33 @@
                 ${song.artist} - ${song.album} (${song.year})
               </div>
               <img src="${song.imageUrl}" alt="Artist">
-              <button onclick="subscribeSong('${song.title}')">Subscribe</button>
+              <button onclick='subscribeSong(${JSON.stringify(song)})'>Subscribe</button>
             `;
             container.appendChild(div);
           });
         });
     }
 
-    function subscribeSong(title) {
-      fetch('/subscribeSong?title=' + encodeURIComponent(title), { method: 'POST' })
-        .then(() => window.location.reload());
-    }
+    function subscribeSong(song) {
+    fetch('/subscribeSong', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(song)
+    })
+    .then(res => {
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        alert("Subscription failed.");
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("An error occurred while subscribing.");
+    });
+  }
 </script>
 
 </body>

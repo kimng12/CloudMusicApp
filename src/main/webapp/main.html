@@ -145,55 +145,65 @@
             .catch(() => alert("Failed to remove song."));
     }
 
-     function queryMusic() {
-        const params = new URLSearchParams({
-            title: document.getElementById('query-title').value,
-            artist: document.getElementById('query-artist').value,
-            album: document.getElementById('query-album').value,
-            year: document.getElementById('query-year').value
-        });
+    function queryMusic() {
+      const params = new URLSearchParams({
+        title: document.getElementById('query-title').value,
+        artist: document.getElementById('query-artist').value,
+        album: document.getElementById('query-album').value,
+        year: document.getElementById('query-year').value
+      });
 
-        if (![...params.values()].some(val => val.trim())) {
-            alert("Please fill at least one query field.");
+      if (![...params.values()].some(val => val)) {
+        alert("Please fill at least one query field.");
+        return;
+      }
+
+      fetch('/queryMusic?' + params)
+        .then(res => res.json())
+        .then(data => {
+          const container = document.getElementById('query-results');
+          container.innerHTML = '';
+          if (!data.length) {
+            container.innerHTML = '<p>No result is retrieved. Please query again.</p>';
             return;
-        }
-
-        fetch('/queryMusic?' + params)
-            .then(res => res.json())
-            .then(data => {
-                const container = document.getElementById('query-results');
-                container.innerHTML = '';
-                if (!data.length) {
-                    container.innerHTML = '<p>No result is retrieved. Please query again.</p>';
-                    return;
-                }
-
-                data.forEach(song => {
-                    const div = document.createElement('div');
-                    div.className = 'song';
-                    div.innerHTML = `
-                        <div class="song-info">
-                            <strong>${song.title}</strong><br>
-                            ${song.artist} - ${song.album} (${song.year})
-                        </div>
-                        <img src="${song.imageUrl}" alt="Artist Image" onerror="this.src='https://via.placeholder.com/80';">
-                        <button onclick='subscribeSong(${JSON.stringify(song)})'>Subscribe</button>
-                    `;
-                    container.appendChild(div);
-                });
-            })
-            .catch(() => alert("Query failed."));
+          }
+          data.forEach(song => {
+            const div = document.createElement('div');
+            div.className = 'song';
+            div.innerHTML = `
+              <div class="song-info">
+                <strong>${song.title}</strong><br>
+                ${song.artist} - ${song.album} (${song.year})
+              </div>
+              <img src="${song.imageUrl}" alt="Artist">
+              <button onclick='subscribeSong(${JSON.stringify(song)})'>Subscribe</button>
+            `;
+            container.appendChild(div);
+          });
+        });
     }
+
 
     function subscribeSong(song) {
-        fetch('/subscribeSong', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(song)
-        })
-        .then(() => window.location.reload())
-        .catch(() => alert("Failed to subscribe."));
-    }
+    fetch('/subscribeSong', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(song)
+    })
+    .then(res => {
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        alert("Subscription failed.");
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("An error occurred while subscribing.");
+    });
+  }
 </script>
 
 </body>
