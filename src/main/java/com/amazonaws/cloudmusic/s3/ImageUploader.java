@@ -20,7 +20,7 @@ public class ImageUploader {
 
     public static void main(String[] args) {
         AmazonS3 s3 = AmazonS3ClientBuilder.standard()
-                .withRegion(Regions.US_EAST_1) // 🔁 Change to your region
+                .withRegion(Regions.US_EAST_1)
                 .build();
 
         Set<String> downloaded = new HashSet<>();
@@ -38,7 +38,7 @@ public class ImageUploader {
                 String imgUrl = song.get("img_url").asText();
                 String fileName = imgUrl.substring(imgUrl.lastIndexOf("/") + 1);
 
-                if (downloaded.contains(fileName)) continue; // Avoid duplicates
+                if (downloaded.contains(fileName)) continue;
                 downloaded.add(fileName);
 
                 File imageFile = new File(tempDir, fileName);

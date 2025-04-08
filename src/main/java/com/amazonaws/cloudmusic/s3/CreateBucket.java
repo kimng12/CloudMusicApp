@@ -14,7 +14,7 @@ import java.io.IOException;
 public class CreateBucket {
     public static void main(String[] args) throws IOException {
         Regions clientRegion = Regions.US_EAST_1;
-        String bucketName = "s3970589-a1-s3-bucket";//e.g., sxxxxxxx-s3test
+        String bucketName = "s3970589-a1-s3-bucket";
 
         try {
             AmazonS3 s3Client = AmazonS3ClientBuilder.standard()

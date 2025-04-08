@@ -16,15 +16,15 @@ import java.util.Map;
 public class LoadMusicData {
     public static void main(String[] args) {
         AmazonDynamoDB dynamoDB = AmazonDynamoDBClientBuilder.standard()
-                .withRegion(Regions.US_EAST_1) // Use your region
+                .withRegion(Regions.US_EAST_1)
                 .build();
 
-        String tableName = "music"; // Your DynamoDB table name
+        String tableName = "music";
 
         try {
             // Load and parse the JSON file
             ObjectMapper mapper = new ObjectMapper();
-            File jsonFile = new File("data/2025a1.json"); // Adjust path if needed
+            File jsonFile = new File("data/2025a1.json");
 
             JsonNode root = mapper.readTree(jsonFile);
             JsonNode songsArray = root.get("songs");
@@ -40,7 +40,7 @@ public class LoadMusicData {
                     item.put("artist", new AttributeValue(song.get("artist").asText()));
                     item.put("year", new AttributeValue(song.get("year").asText()));
                     item.put("album", new AttributeValue(song.get("album").asText()));
-                    item.put("image_url", new AttributeValue(song.get("img_url").asText())); // use "img_url" from file
+                    item.put("image_url", new AttributeValue(song.get("img_url").asText()));
 
                     PutItemRequest request = new PutItemRequest()
                             .withTableName(tableName)
