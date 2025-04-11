@@ -47,23 +47,20 @@ public class GetUserInfoServlet extends HttpServlet {
 
         if (rawSubs != null) {
             for (Map<String, Object> wrapper : rawSubs) {
-                // Step 1: Get the "M" map
                 Map<String, Object> rawMap = (Map<String, Object>) wrapper;
 
-                // Step 2: Extract fields
                 String title = (String) rawMap.get("title");
                 String artist = (String) rawMap.get("artist");
                 String album = (String) rawMap.get("album");
-                String year = rawMap.get("year").toString();  // in case it's a number
-                String imageUrl = (String) rawMap.get("image_url"); // or imageUrl depending on your key
+                String year = rawMap.get("year").toString();
+                String imageUrl = (String) rawMap.get("image_url");
 
-                // Step 3: Build cleaned subscription
                 Map<String, String> song = new HashMap<>();
                 song.put("title", title);
                 song.put("artist", artist);
                 song.put("album", album);
                 song.put("year", year);
-                song.put("imageUrl", imageUrl); // converting from image_url to imageUrl
+                song.put("imageUrl", imageUrl);
 
                 cleanedSubs.add(song);
             }
