@@ -1,128 +1,214 @@
 import json
 import boto3
-STUDENTID = "s3970589"
-def getBatches(subscriptions=None,batchSize=50):
-  ret = []
-  for i in range(0,len(subscriptions),batchSize):
-    ret.append(subscriptions[i:i+batchSize])
-  return ret
 
-def getPresignedURL(songs,bucketName=f"{STUDENTID}-artist-images",URLExpiration = 3600):
-  ret = []
-  try:
+STUDENTID = "s4027383"
+
+def respond(status_code, body):
+    return {
+        "statusCode": status_code,
+        "headers": {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*"
+        },
+        "body": json.dumps(body)
+    }
+
+def getPresignedURL(songs, bucketName=f"{STUDENTID}-a1-s3-bucket", URLExpiration=3600):
     s3 = boto3.client('s3')
-    artists = {}
+    seen = {}
     for song in songs:
-      if song['artist'] not in artists:
-        song['image_url'] = s3.generate_presigned_url(
-        ClientMethod='get_object',
-        Params={'Bucket': bucketName, 'Key': song['image_url'].split('/')[-1]},
-        ExpiresIn=URLExpiration
-        )
-        artists[song['artist']] = song['image_url']
-      else:
-        song['image_url'] = artists[song['artist']]
-      ret.append(song)
-  except Exception as e:
-    print("Exception:",e)
-  return ret
+        key = f"artists/{song.get('image_url', '').split('/')[-1]}"
+        if song['artist'] not in seen:
+            song['image_url'] = s3.generate_presigned_url(
+                ClientMethod='get_object',
+                Params={'Bucket': bucketName, 'Key': key},
+                ExpiresIn=URLExpiration
+            )
+            seen[song['artist']] = song['image_url']
+        else:
+            song['image_url'] = seen[song['artist']]
+    return songs
 
-def getSubscriptionArtists(subscriptions=None):
-  dynamodb = boto3.resource("dynamodb")
-  ret = []
-  if dynamodb!=None and subscriptions !=None:
+def login(event):
+    email = event.get("email")
+    password = event.get("password")
+    if not email or not password:
+        return respond(400, {"status": "Missing credentials"})
+
     try:
-      for batch in getBatches(subscriptions):
-        response = dynamodb.batch_get_item(RequestItems={'music': {'Keys': batch}})
-        songs = getPresignedURL(response['Responses']['music'])
-        ret += songs
-    except Exception as e:
-      print("Exception: ",e)
-  return ret
-
-def login(body):
-  email = None
-  password = None
-  if "email" in body:
-    email = body["email"]
-  if "password" in body:
-    password = body["password"]
-
-  ret = {'status':'Fail'}
-  if email !=None and password !=None:
-    try:
-      dynamodb = boto3.resource("dynamodb")
-      table = dynamodb.Table("login")
-      response = table.get_item(Key={"email":email})
-      if 'Item' in response and password == response["Item"]["password"]:
-        print(response['Item']['subscriptions'])
-        response['Item']['subscriptions'] = getSubscriptionArtists(response['Item']['subscriptions'])
-        ret =  {'status':'Success','subscriptions':response['Item']['subscriptions'],'user':{'email':response['Item']['email'],'user_name':response['Item']['user_name']}}
-      else:
-        ret = {'status':'Incorrect'}
-    except Exception as e:
-      raise e
-  return ret
-
-def register(body):
-    email = None
-    password = None
-    user_name = None
-    if "email" in body:
-      email = str(body["email"])
-    if "password" in body:
-      password = body["password"]
-    if "user_name" in body:
-      user_name = body["user_name"]
-
-    ret = {"status" : "Could not register user"}
-    if email!=None and user_name!=None and password!=None:
-      try:
         dynamodb = boto3.resource("dynamodb")
         table = dynamodb.Table("login")
-        response =  table.put_item(
-              Item={
-              'email':email,
-              'user_name':user_name,
-              'password': password,
-              'subscriptions':[]
-            },
-              ConditionExpression="attribute_not_exists(email)")
-        ret = f'Succesfully registered'
-      except Exception as e:
-        if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
-            ret = {"status" : "Email already exists"}
+        res = table.get_item(Key={"email": email})
+
+        if 'Item' not in res or res['Item']['password'] != password:
+            return respond(200, {"status": "Incorrect"})
+
+        user_data = res['Item']
+        subscriptions = user_data.get("subscriptions", [])
+
+        if subscriptions:
+            music_table = dynamodb.Table("music")
+            keys = [{"artist": s["artist"], "title": s["title"]} for s in subscriptions]
+            batches = [keys[i:i + 25] for i in range(0, len(keys), 25)]
+            songs = []
+            for batch in batches:
+                res = dynamodb.batch_get_item(RequestItems={"music": {"Keys": batch}})
+                songs.extend(res['Responses']['music'])
+            songs = getPresignedURL(songs)
         else:
-            raise e
-    return ret
+            songs = []
+
+        return respond(200, {
+            "status": "Success",
+            "user": {
+                "email": user_data["email"],
+                "user_name": user_data["user_name"]
+            },
+            "subscriptions": songs
+        })
+    except Exception as e:
+        return respond(500, {"status": "Error", "message": str(e)})
+
+def register(event):
+    email = event.get("email")
+    password = event.get("password")
+    user_name = event.get("user_name")
+    if not email or not password or not user_name:
+        return respond(400, {"status": "Missing required fields"})
+
+    try:
+        dynamodb = boto3.resource("dynamodb")
+        table = dynamodb.Table("login")
+        table.put_item(
+            Item={
+                "email": email,
+                "password": password,
+                "user_name": user_name,
+                "subscriptions": []
+            },
+            ConditionExpression="attribute_not_exists(email)"
+        )
+        return respond(200, {"status": "Succesfully registered"})
+    except Exception as e:
+        if hasattr(e, 'response') and e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+            return respond(200, {"status": "Email already exists"})
+        return respond(500, {"status": "Error", "message": str(e)})
+
+def subscribe(event):
+    email = event.get("email")
+    title = event.get("title")
+    artist = event.get("artist")
+    if not email or not title or not artist:
+        return respond(400, {"status": "Missing fields"})
+
+    dynamodb = boto3.resource("dynamodb")
+    login_table = dynamodb.Table("login")
+    music_table = dynamodb.Table("music")
+
+    key = {"title": title, "artist": artist}
+    music_res = music_table.get_item(Key=key)
+    if "Item" not in music_res:
+        return respond(200, {"status": "NoSong"})
+
+    login_res = login_table.get_item(Key={"email": email})
+    subs = login_res["Item"].get("subscriptions", [])
+    if key in subs:
+        return respond(200, {"status": "Fail", "message": "Already subscribed"})
+
+    subs.append(key)
+    login_table.update_item(
+        Key={"email": email},
+        UpdateExpression="SET subscriptions = :s",
+        ExpressionAttributeValues={":s": subs}
+    )
+
+    song = music_res["Item"]
+    song['image_url'] = getPresignedURL([song])[0]['image_url']
+    return respond(200, {"status": "Success", "message": f"Subscribed to {title}", "subscription": song})
+
+def unsubscribe(event):
+    email = event.get("email")
+    title = event.get("title")
+    artist = event.get("artist")
+    if not email or not title or not artist:
+        return respond(400, {"status": "Missing fields"})
+
+    dynamodb = boto3.resource("dynamodb")
+    table = dynamodb.Table("login")
+
+    user = table.get_item(Key={"email": email})
+    subs = user["Item"].get("subscriptions", [])
+    song = {"title": title, "artist": artist}
+    if song in subs:
+        subs.remove(song)
+        table.update_item(
+            Key={"email": email},
+            UpdateExpression="SET subscriptions = :s",
+            ExpressionAttributeValues={":s": subs}
+        )
+        return respond(200, {"status": "Success", "message": f"Unsubscribed from {title}"})
+    else:
+        return respond(200, {"status": "Fail", "message": "Song was not subscribed"})
+
+def search(event):
+    title = event.get("title", "").strip()
+    artist = event.get("artist", "").strip()
+    album = event.get("album", "").strip()
+    year = event.get("year", "").strip()
+
+    if not any([title, artist, album, year]):
+        return respond(400, {"status": "Empty query"})
+
+    dynamodb = boto3.client("dynamodb")
+    filter_exp = []
+    values = {}
+    names = {}
+
+    if title:
+        filter_exp.append("#t = :t")
+        values[":t"] = {"S": title}
+        names["#t"] = "title"
+    if artist:
+        filter_exp.append("#a = :a")
+        values[":a"] = {"S": artist}
+        names["#a"] = "artist"
+    if album:
+        filter_exp.append("#al = :al")
+        values[":al"] = {"S": album}
+        names["#al"] = "album"
+    if year:
+        filter_exp.append("#y = :y")
+        values[":y"] = {"S": year}
+        names["#y"] = "year"
+
+    response = dynamodb.scan(
+        TableName="music",
+        FilterExpression=" AND ".join(filter_exp),
+        ExpressionAttributeNames=names,
+        ExpressionAttributeValues=values
+    )
+
+    songs = []
+    for item in response["Items"]:
+        song = {k: (v.get("S") or v.get("N")) for k, v in item.items()}
+        songs.append(song)
+
+    songs = getPresignedURL(songs)
+    return respond(200, {"status": "Success", "songs": songs})
 
 def lambda_handler(event, context):
-    call = event['call']
-    try:
-      message = ''
-      statusCode = 200
-      if call == 'login':
-        message = login(event)
-        return {
-            'statusCode': statusCode,
-            'body': message
-        }
-      elif call == 'register':
-        message = register(event)
-        statusCode = 200
-        return {
-            'statusCode': statusCode,
-            'body': message
-        }
-      else:
-        return {
-            'statusCode': 404,
-            'body': json.dumps('Invalid request type.')
-        }
-    except Exception as e:
-      print(e)
-      return {
-            'statusCode': 500,
-            'body': json.dumps('Internal server error.')
-        }
-      
+    call = event.get("call")
+
+    if call == "login":
+        return login(event)
+    elif call == "register":
+        return register(event)
+    elif call == "subscribe":
+        return subscribe(event)
+    elif call == "unsubscribe":
+        return unsubscribe(event)
+    elif call == "search":
+        return search(event)
+    else:
+        return respond(404, {"status": "Unknown call"})

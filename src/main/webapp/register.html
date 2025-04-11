@@ -68,7 +68,7 @@
 <body>
 <div class="container">
     <h1>Register</h1>
-    <form action="/register" method="post">
+    <form id="registerForm">
         <label for="email">Email:</label>
         <input type="text" id="email" name="email" required>
 
@@ -81,7 +81,7 @@
         <button class="btn" type="submit">Register</button>
 
         <div class="bottom-text">
-            Already have an account? <a href="login.jsp">Login</a>
+            Already have an account? <a href="login.html">Login</a>
         </div>
 
         <div class="error" id="errorMsg">${errorMessage}</div>
@@ -89,10 +89,31 @@
 </div>
 
 <script>
-    const errorDiv = document.getElementById("errorMsg");
-    if (errorDiv.textContent.trim() !== "" && errorDiv.textContent.trim() !== "${errorMessage}") {
-        errorDiv.style.display = "block";
-    }
+    const API_URL = "https://b8753fcra1.execute-api.us-east-1.amazonaws.com/production/musicapp";
+
+    document.getElementById("registerForm").addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const email = document.getElementById("email").value.trim();
+        const user_name = document.getElementById("user_name").value.trim();
+        const password = document.getElementById("password").value;
+
+        const res = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ call: "register", email, user_name, password })
+        });
+
+        const result = await res.json();
+        const errorMsg = document.getElementById("errorMsg");
+
+        if (result.body?.status === "Succesfully registered") {
+            alert("Registration successful! You can now log in.");
+            window.location.href = "login.html";
+        } else {
+            errorMsg.textContent = result.body?.status || "Registration failed.";
+            errorMsg.style.display = "block";
+        }
+    });
 </script>
 </body>
 </html>

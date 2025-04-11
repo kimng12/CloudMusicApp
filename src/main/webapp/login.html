@@ -1,4 +1,3 @@
-<%@ page contentType="text/html;charset=UTF-8" %>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -68,37 +67,57 @@
 <body>
 <div class="container">
     <h1>Login</h1>
-    <form action="login" method="post">
+    <form id="loginForm">
         <label for="email">Email:</label>
-        <input type="text" id="email" name="email" required>
+        <input type="text" id="email" required>
 
         <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required>
+        <input type="password" id="password" required>
 
         <button class="btn" type="submit">Login</button>
 
         <div class="bottom-text">
-            Don't have an account? <a href="register.html">Register</a>
+            Don’t have an account? <a href="register.html">Register</a>
         </div>
 
-        <% if (request.getAttribute("errorMessage") != null) { %>
-        <div class="error">
-            <%= request.getAttribute("errorMessage") %>
-        </div>
-        <% } %>
-
-        <script>
-            const errorDiv = document.getElementById("errorMsg");
-            if (errorDiv) {
-                if (errorDiv.textContent.trim() === "${errorMessage}" || errorDiv.textContent.trim() === "") {
-                    errorDiv.style.display = "none";
-                } else {
-                    errorDiv.style.display = "block";
-                }
-            }
-        </script>
+        <div class="error" id="errorMsg"></div>
     </form>
 </div>
 
+<script>
+    const API_URL = "https://b8753fcra1.execute-api.us-east-1.amazonaws.com/production/musicapp";
+
+    document.getElementById("loginForm").addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+
+        const errorDiv = document.getElementById("errorMsg");
+        errorDiv.style.display = "none";
+
+        try {
+            const res = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ call: "login", email, password })
+            });
+
+            const result = await res.json();
+            const parsed = typeof result.body === "string" ? JSON.parse(result.body) : result.body;
+
+            if (parsed.status === "Success") {
+                sessionStorage.setItem("user", JSON.stringify(parsed.user));
+                sessionStorage.setItem("subscriptions", JSON.stringify(parsed.subscriptions));
+                window.location.href = "main.html";
+            } else {
+                errorDiv.textContent = "Invalid credentials";
+                errorDiv.style.display = "block";
+            }
+        } catch (err) {
+            errorDiv.textContent = "An error occurred. Please try again later.";
+            errorDiv.style.display = "block";
+        }
+    });
+</script>
 </body>
 </html>
