@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>Cloud Music App</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -84,7 +87,7 @@
     <div></div>
     <div>
         Welcome, <span id="username">[username]</span> |
-        <a href="login.jsp" style="color: white; text-decoration: underline;">Logout</a>
+        <button onclick="window.location.href='logout.jsp'">Logout</button>
     </div>
 </header>
 
@@ -110,15 +113,30 @@
 </div>
 
 <script>
+    // Prevent caching via JavaScript too
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            window.location.reload();
+        }
+    });
     // On load
     window.onload = function () {
-        fetch('/getUserInfo')
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('username').innerText = data.username;
-                loadSubscriptions(data.subscriptions || []);
-            })
-            .catch(() => alert("Failed to load user info."));
+    fetch('/getUserInfo')
+        .then(res => {
+            if (!res.ok) {
+                window.location.href = 'login.jsp'; // Redirect if not logged in
+                return;
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (!data) return;
+            document.getElementById('username').innerText = data.username;
+            loadSubscriptions(data.subscriptions || []);
+        })
+        .catch(() => {
+            window.location.href = 'login.jsp';
+        });
     };
 
     function loadSubscriptions(subs) {
@@ -159,7 +177,15 @@
       }
 
       fetch('/queryMusic?' + params)
-        .then(res => res.json())
+        .then(res => {
+            if (res.status === 401) {
+                if (confirm("You must log in to use this feature. Redirect to login page?")) {
+                    window.location.href = 'login.jsp';
+                }
+                throw new Error("Not authorized");
+            }
+            return res.json();
+        })
         .then(data => {
           const container = document.getElementById('query-results');
           container.innerHTML = '';
@@ -180,30 +206,33 @@
             `;
             container.appendChild(div);
           });
+        })
+        .catch(err => {
+            console.error(err);
         });
     }
 
 
     function subscribeSong(song) {
-    fetch('/subscribeSong', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(song)
-    })
-    .then(res => {
-      if (res.ok) {
-        window.location.reload();
-      } else {
-        alert("Subscription failed.");
-      }
-    })
-    .catch(err => {
-      console.error(err);
-      alert("An error occurred while subscribing.");
-    });
-  }
+        fetch('/subscribeSong', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+        },
+            body: JSON.stringify(song)
+        })
+        .then(res => {
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                alert("Subscription failed.");
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("An error occurred while subscribing.");
+         });
+    }
 </script>
 
 </body>
