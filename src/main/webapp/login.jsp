@@ -89,10 +89,12 @@
 
         <script>
             const errorDiv = document.getElementById("errorMsg");
-            if (errorDiv.textContent.trim() === "${errorMessage}" || errorDiv.textContent.trim() === "") {
-                errorDiv.style.display = "none";
-            } else {
-                errorDiv.style.display = "block";
+            if (errorDiv) {
+                if (errorDiv.textContent.trim() === "${errorMessage}" || errorDiv.textContent.trim() === "") {
+                    errorDiv.style.display = "none";
+                } else {
+                    errorDiv.style.display = "block";
+                }
             }
         </script>
     </form>
