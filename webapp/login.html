@@ -1,4 +1,3 @@
-<%@ page contentType="text/html;charset=UTF-8" %>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -68,12 +67,12 @@
 <body>
 <div class="container">
     <h1>Login</h1>
-    <form action="login" method="post">
+    <form id="loginForm">
         <label for="email">Email:</label>
-        <input type="text" id="email" name="email" required>
+        <input type="text" id="email" required>
 
         <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required>
+        <input type="password" id="password" required>
 
         <button class="btn" type="submit">Login</button>
 
@@ -81,22 +80,44 @@
             Don’t have an account? <a href="register.html">Register</a>
         </div>
 
-        <% if (request.getAttribute("errorMessage") != null) { %>
-        <div class="error">
-            <%= request.getAttribute("errorMessage") %>
-        </div>
-        <% } %>
-
-        <script>
-            const errorDiv = document.getElementById("errorMsg");
-            if (errorDiv.textContent.trim() === "${errorMessage}" || errorDiv.textContent.trim() === "") {
-                errorDiv.style.display = "none";
-            } else {
-                errorDiv.style.display = "block";
-            }
-        </script>
+        <div class="error" id="errorMsg"></div>
     </form>
 </div>
 
+<script>
+    const API_URL = "https://t1h28lqcr5.execute-api.us-east-1.amazonaws.com/production/cloudmusic-handler";
+
+    document.getElementById("loginForm").addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+        const errorDiv = document.getElementById("errorMsg");
+        errorDiv.style.display = "none";
+
+        try {
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ call: "login", email, password })
+            });
+
+            const data = await response.json();
+            const body = typeof data.body === "string" ? JSON.parse(data.body) : data.body;
+
+            if (body.status === "Success") {
+                sessionStorage.setItem("user", JSON.stringify(body.user));
+                sessionStorage.setItem("subscriptions", JSON.stringify(body.subscriptions));
+                window.location.href = "main.html";
+            } else {
+                errorDiv.textContent = "Email or password is invalid";
+                errorDiv.style.display = "block";
+            }
+        } catch (err) {
+            errorDiv.textContent = "An error occurred. Please try again later.";
+            errorDiv.style.display = "block";
+        }
+    });
+</script>
 </body>
 </html>

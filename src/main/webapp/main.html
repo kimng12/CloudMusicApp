@@ -87,7 +87,7 @@
     <div></div>
     <div>
         Welcome, <span id="username">[username]</span> |
-        <button onclick="window.location.href='logout.jsp'">Logout</button>
+        <button onclick="window.location.href='logout.html'">Logout</button>
     </div>
 </header>
 
@@ -113,30 +113,19 @@
 </div>
 
 <script>
-    // Prevent caching via JavaScript too
-    window.addEventListener('pageshow', function(event) {
-        if (event.persisted) {
-            window.location.reload();
+    const API_URL = "https://t1h28lqcr5.execute-api.us-east-1.amazonaws.com/production/cloudmusic-handler"; // Replace with your actual endpoint
+
+    window.onload = () => {
+        const user = JSON.parse(sessionStorage.getItem("user"));
+        const subscriptions = JSON.parse(sessionStorage.getItem("subscriptions") || "[]");
+
+        if (!user) {
+            window.location.href = "login.html";
+            return;
         }
-    });
-    // On load
-    window.onload = function () {
-    fetch('/getUserInfo')
-        .then(res => {
-            if (!res.ok) {
-                window.location.href = 'login.jsp'; // Redirect if not logged in
-                return;
-            }
-            return res.json();
-        })
-        .then(data => {
-            if (!data) return;
-            document.getElementById('username').innerText = data.username;
-            loadSubscriptions(data.subscriptions || []);
-        })
-        .catch(() => {
-            window.location.href = 'login.jsp';
-        });
+
+        document.getElementById("username").innerText = user.user_name;
+        loadSubscriptions(subscriptions);
     };
 
     function loadSubscriptions(subs) {
@@ -146,93 +135,148 @@
             const div = document.createElement('div');
             div.className = 'song';
             div.innerHTML = `
+        <div class="song-info">
+          <strong>${song.title}</strong><br>
+          ${song.artist} - ${song.album} (${song.year})
+        </div>
+        <img src="${song.image_url}" alt="Artist" onerror="this.src='https://via.placeholder.com/80';">
+        <button onclick="removeSong('${song.title}', '${song.artist}')">Remove</button>
+      `;
+            container.appendChild(div);
+        });
+    }
+
+    function removeSong(title, artist) {
+        const email = JSON.parse(sessionStorage.getItem("user")).email;
+
+        fetch(API_URL, {
+            method: "POST",
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ call: "unsubscribe", email, title, artist })
+        })
+        .then(res => res.json())
+        .then(data => {
+            const parsed = typeof data.body === "string" ? JSON.parse(data.body) : data.body;
+
+            if (parsed.status === "Success") {
+                alert("Unsubscribed successfully");
+                // Remove the unsubscribed song from sessionStorage
+                let subs = JSON.parse(sessionStorage.getItem("subscriptions") || "[]");
+                subs = subs.filter(song => !(song.title === title && song.artist === artist));
+                sessionStorage.setItem("subscriptions", JSON.stringify(subs));
+                // Re-render the updated subscriptions
+                loadSubscriptions(subs);
+            } else {
+                alert(parsed.message || "Failed to unsubscribe");
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("An error occurred while unsubscribing.");
+        });
+    }
+
+    function queryMusic() {
+        const container = document.getElementById('query-results');
+        container.innerHTML = ''; // clear previous results
+
+        const title = document.getElementById('query-title').value.trim();
+        const artist = document.getElementById('query-artist').value.trim();
+        const album = document.getElementById('query-album').value.trim();
+        const year = document.getElementById('query-year').value.trim();
+
+        const requestBody = {
+            call: "search",
+            title,
+            artist,
+            album,
+            year
+        };
+
+        console.log("📤 Sending search request with:", requestBody);
+
+        fetch(API_URL, {
+            method: "POST",
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        })
+            .then(res => {
+                console.log("📥 Raw response:", res);
+                return res.json();
+            })
+            .then(data => {
+                console.log("✅ Lambda response:", data);
+
+                // parse body if it's a JSON string
+                const parsedBody = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
+
+                console.log("🧠 Parsed songs:", parsedBody.songs);
+
+                if (!parsedBody.songs || !parsedBody.songs.length) {
+                    container.innerHTML = '<p>No result is retrieved. Please query again.</p>';
+                    return;
+                }
+
+                parsedBody.songs.forEach(song => {
+                    const div = document.createElement('div');
+                    div.className = 'song';
+
+                    div.innerHTML = `
                 <div class="song-info">
                     <strong>${song.title}</strong><br>
                     ${song.artist} - ${song.album} (${song.year})
                 </div>
-                <img src="${song.imageUrl}" alt="Artist Image" onerror="this.src='https://via.placeholder.com/80';">
-                <button onclick="removeSong('${song.title}')">Remove</button>
+                <img src="${song.image_url}" alt="Artist" onerror="this.src='https://via.placeholder.com/80';">
             `;
-            container.appendChild(div);
-        });
+
+                    const button = document.createElement('button');
+                    button.textContent = "Subscribe";
+                    button.onclick = () => subscribeSong(song);
+                    div.appendChild(button);
+
+                    container.appendChild(div);
+                });
+            })
+            .catch(err => {
+                console.error("❌ Fetch error:", err);
+                container.innerHTML = '<p>Error while fetching results. Please try again later.</p>';
+            });
     }
-
-    function removeSong(title) {
-        fetch('/removeSong?title=' + encodeURIComponent(title), { method: 'POST' })
-            .then(() => window.location.reload())
-            .catch(() => alert("Failed to remove song."));
-    }
-
-    function queryMusic() {
-      const params = new URLSearchParams({
-        title: document.getElementById('query-title').value,
-        artist: document.getElementById('query-artist').value,
-        album: document.getElementById('query-album').value,
-        year: document.getElementById('query-year').value
-      });
-
-      if (![...params.values()].some(val => val)) {
-        alert("Please fill at least one query field.");
-        return;
-      }
-
-      fetch('/queryMusic?' + params)
-        .then(res => {
-            if (res.status === 401) {
-                if (confirm("You must log in to use this feature. Redirect to login page?")) {
-                    window.location.href = 'login.jsp';
-                }
-                throw new Error("Not authorized");
-            }
-            return res.json();
-        })
-        .then(data => {
-          const container = document.getElementById('query-results');
-          container.innerHTML = '';
-          if (!data.length) {
-            container.innerHTML = '<p>No result is retrieved. Please query again.</p>';
-            return;
-          }
-          data.forEach(song => {
-            const div = document.createElement('div');
-            div.className = 'song';
-            div.innerHTML = `
-              <div class="song-info">
-                <strong>${song.title}</strong><br>
-                ${song.artist} - ${song.album} (${song.year})
-              </div>
-              <img src="${song.imageUrl}" alt="Artist">
-              <button onclick='subscribeSong(${JSON.stringify(song)})'>Subscribe</button>
-            `;
-            container.appendChild(div);
-          });
-        })
-        .catch(err => {
-            console.error(err);
-        });
-    }
-
 
     function subscribeSong(song) {
-        fetch('/subscribeSong', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-        },
-            body: JSON.stringify(song)
+        const email = JSON.parse(sessionStorage.getItem("user")).email;
+
+        fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ call: "subscribe", email, title: song.title, artist: song.artist })
         })
-        .then(res => {
-            if (res.ok) {
-                window.location.reload();
+        .then(res => res.json())
+        .then(result => {
+            const data = typeof result.body === "string" ? JSON.parse(result.body) : result.body;
+
+            if (data.status === "Success") {
+                alert(data.message || "Subscribed");
+
+                // Update session storage and UI
+                let subscriptions = JSON.parse(sessionStorage.getItem("subscriptions")) || [];
+                subscriptions.push(data.subscription); // Add new song
+                sessionStorage.setItem("subscriptions", JSON.stringify(subscriptions));
+                loadSubscriptions(subscriptions); // Re-render the section
             } else {
-                alert("Subscription failed.");
+                alert(data.message || "Subscription failed");
             }
         })
         .catch(err => {
             console.error(err);
             alert("An error occurred while subscribing.");
-         });
+        });
     }
+    window.addEventListener("pageshow", function(event) {
+        if (event.persisted) {
+            window.location.reload();
+        }
+    });
 </script>
 
 </body>
