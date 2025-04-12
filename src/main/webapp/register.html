@@ -93,24 +93,32 @@
 
     document.getElementById("registerForm").addEventListener("submit", async function (e) {
         e.preventDefault();
+
         const email = document.getElementById("email").value.trim();
         const user_name = document.getElementById("user_name").value.trim();
         const password = document.getElementById("password").value;
-
-        const res = await fetch(API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ call: "register", email, user_name, password })
-        });
-
-        const result = await res.json();
         const errorMsg = document.getElementById("errorMsg");
+        errorMsg.style.display = "none";
 
-        if (result.body?.status === "Succesfully registered") {
-            alert("Registration successful! You can now log in.");
-            window.location.href = "login.html";
-        } else {
-            errorMsg.textContent = result.body?.status || "Registration failed.";
+        try {
+            const res = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ call: "register", email, user_name, password })
+            });
+
+            const result = await res.json();
+            const parsed = typeof result.body === "string" ? JSON.parse(result.body) : result.body;
+
+            if (parsed.status === "Succesfully registered") {
+                alert("Registration successful! You can now log in.");
+                window.location.href = "login.html";
+            } else {
+                errorMsg.textContent = parsed.status || "Registration failed.";
+                errorMsg.style.display = "block";
+            }
+        } catch (err) {
+            errorMsg.textContent = "Something went wrong. Please try again.";
             errorMsg.style.display = "block";
         }
     });

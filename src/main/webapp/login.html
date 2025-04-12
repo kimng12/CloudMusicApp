@@ -89,28 +89,28 @@
 
     document.getElementById("loginForm").addEventListener("submit", async function (e) {
         e.preventDefault();
+
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value;
-
         const errorDiv = document.getElementById("errorMsg");
         errorDiv.style.display = "none";
 
         try {
-            const res = await fetch(API_URL, {
+            const response = await fetch(API_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ call: "login", email, password })
             });
 
-            const result = await res.json();
-            const parsed = typeof result.body === "string" ? JSON.parse(result.body) : result.body;
+            const data = await response.json();
+            const body = typeof data.body === "string" ? JSON.parse(data.body) : data.body;
 
-            if (parsed.status === "Success") {
-                sessionStorage.setItem("user", JSON.stringify(parsed.user));
-                sessionStorage.setItem("subscriptions", JSON.stringify(parsed.subscriptions));
+            if (body.status === "Success") {
+                sessionStorage.setItem("user", JSON.stringify(body.user));
+                sessionStorage.setItem("subscriptions", JSON.stringify(body.subscriptions));
                 window.location.href = "main.html";
             } else {
-                errorDiv.textContent = "Invalid credentials";
+                errorDiv.textContent = "Email or password is invalid";
                 errorDiv.style.display = "block";
             }
         } catch (err) {

@@ -37,36 +37,33 @@ def login(event):
         return respond(400, {"status": "Missing credentials"})
 
     try:
-        dynamodb = boto3.resource("dynamodb")
-        table = dynamodb.Table("login")
-        res = table.get_item(Key={"email": email})
+        table = boto3.resource("dynamodb").Table("login")
+        user = table.get_item(Key={"email": email}).get("Item")
 
-        if 'Item' not in res or res['Item']['password'] != password:
+        if not user or user["password"] != password:
             return respond(200, {"status": "Incorrect"})
 
-        user_data = res['Item']
-        subscriptions = user_data.get("subscriptions", [])
+        subscriptions = user.get("subscriptions", [])
+        songs = []
 
         if subscriptions:
-            music_table = dynamodb.Table("music")
+            music_table = boto3.resource("dynamodb").Table("music")
             keys = [{"artist": s["artist"], "title": s["title"]} for s in subscriptions]
-            batches = [keys[i:i + 25] for i in range(0, len(keys), 25)]
-            songs = []
-            for batch in batches:
-                res = dynamodb.batch_get_item(RequestItems={"music": {"Keys": batch}})
-                songs.extend(res['Responses']['music'])
+            for i in range(0, len(keys), 25):
+                batch = keys[i:i+25]
+                res = music_table.meta.client.batch_get_item(RequestItems={"music": {"Keys": batch}})
+                songs.extend(res["Responses"]["music"])
             songs = getPresignedURL(songs)
-        else:
-            songs = []
 
         return respond(200, {
             "status": "Success",
             "user": {
-                "email": user_data["email"],
-                "user_name": user_data["user_name"]
+                "email": user["email"],
+                "user_name": user["user_name"]
             },
             "subscriptions": songs
         })
+
     except Exception as e:
         return respond(500, {"status": "Error", "message": str(e)})
 
@@ -74,6 +71,7 @@ def register(event):
     email = event.get("email")
     password = event.get("password")
     user_name = event.get("user_name")
+
     if not email or not password or not user_name:
         return respond(400, {"status": "Missing required fields"})
 
@@ -90,8 +88,9 @@ def register(event):
             ConditionExpression="attribute_not_exists(email)"
         )
         return respond(200, {"status": "Succesfully registered"})
+
     except Exception as e:
-        if hasattr(e, 'response') and e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+        if getattr(e, "response", {}).get("Error", {}).get("Code") == "ConditionalCheckFailedException":
             return respond(200, {"status": "Email already exists"})
         return respond(500, {"status": "Error", "message": str(e)})
 
