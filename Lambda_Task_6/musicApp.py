@@ -1,7 +1,7 @@
 import json
 import boto3
 
-STUDENTID = "s4027383"
+STUDENTID = "s3970589"
 
 def respond(status_code, body):
     return {
@@ -18,7 +18,7 @@ def getPresignedURL(songs, bucketName=f"{STUDENTID}-a1-s3-bucket", URLExpiration
     s3 = boto3.client('s3')
     seen = {}
     for song in songs:
-        key = f"artists/{song.get('image_url', '').split('/')[-1]}"
+        key = f"images/{song.get('image_url', '').split('/')[-1]}"
         if song['artist'] not in seen:
             song['image_url'] = s3.generate_presigned_url(
                 ClientMethod='get_object',

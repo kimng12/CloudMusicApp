@@ -113,7 +113,7 @@
 </div>
 
 <script>
-    const API_URL = "https://b8753fcra1.execute-api.us-east-1.amazonaws.com/production/musicapp"; // Replace with your actual endpoint
+    const API_URL = "https://t1h28lqcr5.execute-api.us-east-1.amazonaws.com/production/cloudmusic-handler"; // Replace with your actual endpoint
 
     window.onload = () => {
         const user = JSON.parse(sessionStorage.getItem("user"));
@@ -154,20 +154,30 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ call: "unsubscribe", email, title, artist })
         })
-            .then(res => res.json())
-            .then(data => {
-                if (data.body.status === "Success") {
-                    alert(data.body.message);
-                    window.location.reload();
-                } else {
-                    alert(data.body.message || "Failed to unsubscribe");
-                }
-            })
-            .catch(console.error);
+        .then(res => res.json())
+        .then(data => {
+            const parsed = typeof data.body === "string" ? JSON.parse(data.body) : data.body;
+
+            if (parsed.status === "Success") {
+                alert("Unsubscribed successfully");
+                // Remove the unsubscribed song from sessionStorage
+                let subs = JSON.parse(sessionStorage.getItem("subscriptions") || "[]");
+                subs = subs.filter(song => !(song.title === title && song.artist === artist));
+                sessionStorage.setItem("subscriptions", JSON.stringify(subs));
+                // Re-render the updated subscriptions
+                loadSubscriptions(subs);
+            } else {
+                alert(parsed.message || "Failed to unsubscribe");
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("An error occurred while unsubscribing.");
+        });
     }
 
     function queryMusic() {
-        const container = document.getElementById('query-results'); // ✅ define container
+        const container = document.getElementById('query-results');
         container.innerHTML = ''; // clear previous results
 
         const title = document.getElementById('query-title').value.trim();
@@ -241,16 +251,32 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ call: "subscribe", email, title: song.title, artist: song.artist })
         })
-            .then(res => res.json())
-            .then(data => {
-                alert(data.body.message || "Subscribed");
-                window.location.reload();
-            })
-            .catch(err => {
-                console.error(err);
-                alert("An error occurred while subscribing.");
-            });
+        .then(res => res.json())
+        .then(result => {
+            const data = typeof result.body === "string" ? JSON.parse(result.body) : result.body;
+
+            if (data.status === "Success") {
+                alert(data.message || "Subscribed");
+
+                // Update session storage and UI
+                let subscriptions = JSON.parse(sessionStorage.getItem("subscriptions")) || [];
+                subscriptions.push(data.subscription); // Add new song
+                sessionStorage.setItem("subscriptions", JSON.stringify(subscriptions));
+                loadSubscriptions(subscriptions); // Re-render the section
+            } else {
+                alert(data.message || "Subscription failed");
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("An error occurred while subscribing.");
+        });
     }
+    window.addEventListener("pageshow", function(event) {
+        if (event.persisted) {
+            window.location.reload();
+        }
+    });
 </script>
 
 </body>
